@@ -1,6 +1,7 @@
 <template>
   <div>
     Hello Home
+    Test Netlify
   </div>
 </template>
 <script setup lang="ts">
