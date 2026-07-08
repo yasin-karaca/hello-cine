@@ -3,8 +3,10 @@
     <h1>Top rated movies</h1>
     <template v-if="data">
       <div v-for="movie in data.results">
-        <pre>{{ movie }}</pre>
-        <img :src="getImageUrl(movie.poster_path)" :alt="movie.title" />
+        <RouterLink :to="`/movie/${movie.id}`">
+          <pre>{{ movie }}</pre>
+          <img :src="getImageUrl(movie.poster_path)" :alt="movie.title" />
+        </RouterLink>
       </div>
 
       <div>
