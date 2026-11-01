@@ -1,9 +1,17 @@
 <template>
   <div>
     <h1>Top rated movies</h1>
+
+    <select v-model="selectedGenre">
+      <option :value="null">Tous les genres</option>
+      <option v-for="genre in genres?.genres" :key="genre.id" :value="genre.id">
+        {{ genre.name }}
+      </option>
+    </select>
+
     <template v-if="data">
       <div v-for="movie in data.results" :key="movie.id">
-        <!-- <RouterLink :to="`/movie/${movie.id}`"> -->
+        <RouterLink :to="`/movie/${movie.id}`">
           <img :src="getImageUrl(movie.poster_path)" :alt="movie.title" />
           <h2>{{ movie.title }}</h2>
           <p>{{ movie.overview }}</p>
@@ -11,9 +19,8 @@
           <p>Release year : {{ movie.release_date.slice(0, 4) }}</p>
 
           <h4>Genre</h4>
-          <pre>{{ movie.genre_ids }}</pre>
-
-        <!-- </RouterLink> -->
+          <p>{{ getGenreNames(movie.genre_ids) }}</p>
+        </RouterLink>
       </div>
 
       <div>
@@ -25,22 +32,61 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import { useFetch } from '@/composables/useApi'
-import { getImageUrl } from '@/utils/image'
-import type { MovieResponse } from '@/types/api'
+import { watch, onMounted, computed } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { useFetch } from "@/composables/useApi";
+import { getImageUrl } from "@/utils/image";
+import type { MovieResponse, GenreResponse } from "@/types/api";
 
-const currentPage = ref(1)
+const route = useRoute();
+const router = useRouter();
 
-const getUrl = (page: number) =>
-  `https://api.themoviedb.org/3/movie/top_rated?language=en-US&page=${page}`
+// La page et le genre viennent de l'URL
+const currentPage = computed(() => Number(route.query.page) || 1);
 
-const { data, execute } = useFetch<MovieResponse>(getUrl(currentPage.value))
+const selectedGenre = computed({
+  get: () => (route.query.genre ? Number(route.query.genre) : null),
+  set: (value: number | null) => {
+    // changer de genre remet automatiquement à la page 1
+    router.push({ query: { genre: value ?? undefined } });
+  },
+});
 
-watch(currentPage, async (newPage) => {
-  await execute(getUrl(newPage))
-}, { immediate: true })
+const goToPage = (page: number) => {
+  router.push({ query: { ...route.query, page } });
+};
 
-const nextPage = () => currentPage.value++
-const prevPage = () => currentPage.value--
+const nextPage = () => goToPage(currentPage.value + 1);
+const prevPage = () => goToPage(currentPage.value - 1);
+
+const BASE_URL = "https://api.themoviedb.org/3";
+
+const getUrl = (page: number, genreId: number | null) => {
+  const params = new URLSearchParams({
+    language: "en-US",
+    page: String(page),
+    sort_by: "vote_average.desc",
+    "vote_count.gte": "300",
+  });
+  if (genreId) params.set("with_genres", String(genreId));
+  return `${BASE_URL}/discover/movie?${params}`;
+};
+
+const { data: genres, execute: fetchGenres } = useFetch<GenreResponse>(
+  `${BASE_URL}/genre/movie/list?language=en`,
+);
+
+const getGenreNames = (ids: number[]) =>
+  ids
+    .map((id) => genres.value?.genres.find((g) => g.id === id)?.name)
+    .filter(Boolean)
+    .join(", ");
+
+onMounted(() => fetchGenres());
+
+const { data, execute } = useFetch<MovieResponse>(getUrl(1, null));
+
+watch([currentPage, selectedGenre], () => execute(getUrl(currentPage.value, selectedGenre.value)), {
+  immediate: true,
+});
 </script>
