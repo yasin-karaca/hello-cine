@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h1>Top rated movies</h1>
+    <h1>{{ title }}</h1>
 
     <select v-model="selectedGenre">
       <option :value="null">Tous les genres</option>
@@ -39,16 +39,25 @@ import { useFetch } from "@/composables/useApi";
 import { getImageUrl } from "@/utils/image";
 import type { MovieResponse, GenreResponse } from "@/types/api";
 
+const props = defineProps<{
+  category: "top_rated" | "popular";
+}>();
+
 const route = useRoute();
 const router = useRouter();
 
-// La page et le genre viennent de l'URL
+// Nom de la route à laquelle appartient cette instance
+const ownRouteName = route.name;
+
+const title = computed(() =>
+  props.category === "popular" ? "Popular movies" : "Top rated movies",
+);
+
 const currentPage = computed(() => Number(route.query.page) || 1);
 
 const selectedGenre = computed({
   get: () => (route.query.genre ? Number(route.query.genre) : null),
   set: (value: number | null) => {
-    // changer de genre remet automatiquement à la page 1
     router.push({ query: { genre: value ?? undefined } });
   },
 });
@@ -66,9 +75,15 @@ const getUrl = (page: number, genreId: number | null) => {
   const params = new URLSearchParams({
     language: "en-US",
     page: String(page),
-    sort_by: "vote_average.desc",
-    "vote_count.gte": "300",
   });
+
+  if (props.category === "popular") {
+    params.set("sort_by", "popularity.desc");
+  } else {
+    params.set("sort_by", "vote_average.desc");
+    params.set("vote_count.gte", "300");
+  }
+
   if (genreId) params.set("with_genres", String(genreId));
   return `${BASE_URL}/discover/movie?${params}`;
 };
@@ -92,14 +107,14 @@ let lastKey = "";
 watch(
   [currentPage, selectedGenre],
   () => {
-    if (route.name !== "home") return;
+    // Ignore les changements d'URL qui concernent une autre page
+    if (route.name !== ownRouteName) return;
 
-    // Ne refait la requête que si la page ou le genre a vraiment changé
     const key = `${currentPage.value}-${selectedGenre.value}`;
     if (key === lastKey) return;
     lastKey = key;
 
-    data.value = null; // supprime les anciens films avant le chargement
+    data.value = null;
     execute(getUrl(currentPage.value, selectedGenre.value));
   },
   { immediate: true },

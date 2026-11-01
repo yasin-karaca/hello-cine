@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router";
-import HomeView from "@/views/HomeView.vue";
+import MovieList from "@/views/MovieList.vue";
 import MovieDetails from "@/views/MovieDetails.vue";
 
 const router = createRouter({
@@ -8,7 +8,18 @@ const router = createRouter({
     {
       path: "/",
       name: "home",
-      component: HomeView,
+      component: MovieList,
+      props: {
+        category: "top_rated",
+      },
+    },
+    {
+      path: "/popular",
+      name: "popular",
+      component: MovieList,
+      props: {
+        category: "popular",
+      },
     },
     {
       path: "/movie/:id",
