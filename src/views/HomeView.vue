@@ -9,7 +9,8 @@
       </option>
     </select>
 
-    <template v-if="data">
+    <p v-if="loading">Chargement...</p>
+    <template v-else-if="data">
       <div v-for="movie in data.results" :key="movie.id">
         <RouterLink :to="`/movie/${movie.id}`">
           <img :src="getImageUrl(movie.poster_path)" :alt="movie.title" />
@@ -84,9 +85,23 @@ const getGenreNames = (ids: number[]) =>
 
 onMounted(() => fetchGenres());
 
-const { data, execute } = useFetch<MovieResponse>(getUrl(1, null));
+const { data, loading, execute } = useFetch<MovieResponse>(getUrl(1, null));
 
-watch([currentPage, selectedGenre], () => execute(getUrl(currentPage.value, selectedGenre.value)), {
-  immediate: true,
-});
+let lastKey = "";
+
+watch(
+  [currentPage, selectedGenre],
+  () => {
+    if (route.name !== "home") return;
+
+    // Ne refait la requête que si la page ou le genre a vraiment changé
+    const key = `${currentPage.value}-${selectedGenre.value}`;
+    if (key === lastKey) return;
+    lastKey = key;
+
+    data.value = null; // supprime les anciens films avant le chargement
+    execute(getUrl(currentPage.value, selectedGenre.value));
+  },
+  { immediate: true },
+);
 </script>
